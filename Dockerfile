@@ -1,15 +1,27 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
-RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && apt-get install -y wget unzip curl python3 python3-pip git cmake build-essential protobuf-compiler libprotobuf-dev libboost-all-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install system packages
+RUN apt-get update && \
+    apt-get install -y wget python3 python3-pip curl unzip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git && cd lc0 && mkdir build && cd build && cmake .. -DUSE_CUDA=OFF && make && cp lc0 /app/lc0
+# Download prebuilt lc0 CUDA binary
+RUN wget https://github.com/LeelaChessZero/lc0/releases/download/v0.30.0/lc0-v0.30.0-linux-cuda.tar.gz && \
+    tar -xzf lc0-v0.30.0-linux-cuda.tar.gz && \
+    mv lc0-v0.30.0-linux-cuda lc0 && \
+    rm lc0-v0.30.0-linux-cuda.tar.gz
 
+# Download latest network weights
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
+# Install Python dependencies
 RUN pip3 install flask
 
+# Copy local app files (should include app.py)
 COPY . /app
 
+# Launch server
 CMD ["python3", "app.py"]
