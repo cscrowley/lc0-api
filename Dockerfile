@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.2.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 
 RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && apt-get install -y wget unzip curl python3 python3-pip git cmake build-essential protobuf-compiler libprotobuf-dev libboost-all-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
 
