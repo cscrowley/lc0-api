@@ -1,39 +1,53 @@
-# v0.39 - CUDA + Meson build, REST-enabled
+# v0.40 - CUDA + Meson build for lc0 REST server
+# Notes:
+# - Using Ubuntu 22.04 base
+# - CUDA 12.2 with cudnn expected to be available in image (handled via base or host mount)
+# - Meson build system used as per official README
+# - Weights and app.py expected via bind mount or later COPY
+
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-LABEL version="0.39" description="Builds lc0 v0.32.0-rc1 with CUDA via Meson, includes Flask REST server"
+LABEL version="0.40"
+LABEL maintainer="GPT for Conor"
+LABEL description="Lc0 REST server with CUDA using Meson build"
 
-# Install build dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git python3 python3-pip curl wget unzip ninja-build \
-    meson build-essential libprotobuf-dev protobuf-compiler \
-    libopenblas-dev zlib1g-dev && \
+# Essential build tools
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    ninja-build \
+    meson \
+    python3 \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    wget \
+    curl \
+    ca-certificates \
+    unzip \
+    zlib1g-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    libboost-all-dev \
+    libopenblas-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set workdir
 WORKDIR /app
 
-# Clone Lc0 (v0.32.0-rc1) with submodules
-RUN git clone --recurse-submodules https://github.com/LeelaChessZero/lc0.git && \
-    cd lc0 && git checkout v0.32.0-rc1 && git submodule update --init --recursive
-
-# Build with Meson
-RUN cd /app/lc0 && \
-    meson setup build --buildtype release && \
+# Clone Lc0 and build
+RUN git clone --recurse-submodules --branch release/0.32 https://github.com/LeelaChessZero/lc0.git && \
+    cd lc0 && \
+    meson setup build --buildtype=release -Dgtest=false -Dcuda=true && \
     ninja -C build && \
-    cp build/lc0 /app/lc0
+    cp build/lc0 /app/lc0 && \
+    cd /app && rm -rf lc0
 
-# Download latest weights
-RUN wget https://lczero.org/networks/current -O /app/weights.pb.gz
+# Download weights
+RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Copy REST server
+# Flask REST interface (expected app.py present or mount later)
 COPY app.py /app/app.py
-
-# Install Flask
 RUN pip3 install flask
 
-# Expose REST port
-EXPOSE 5000
-
-# Run REST server
-CMD ["python3", "app.py"]
+CMD ["python3", "/app/app.py"]
