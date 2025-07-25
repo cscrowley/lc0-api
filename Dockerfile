@@ -1,53 +1,42 @@
-# =============================
-# Lc0 Docker Build v0.35
-# -----------------------------
-# Base Image: ubuntu:22.04
-# Lc0 Version: release/0.31 (from Git)
-# Backend: CPU-only (no CUDA)
-# Build System: CMake
-# Status: ❌ FAIL
-# Summary:
-# - Attempted CPU-only build using CMake.
-# - cmake .. -DUSE_CUDA=OFF failed due to missing/incorrect CMakeLists.txt (again).
-# - This method is deprecated per upstream README.
-# - Git or build dependencies may have been missing from path.
-# -----------------------------
-# Notes:
-# - Consider switching to Meson build system per README guidance.
-# - CUDA build may be more stable if prerequisites are satisfied.
-# =============================
+# Lc0 REST Docker Image
+# Version: v0.35
+# Status: Experimental - CUDA support enabled
+# Changelog:
+# - Switched to CUDA + Meson build after CMake fails with 0.31
+# - Using v0.32.0-rc1 tag from Lc0 repo
+# - Verified prerequisites: Python 3, Ninja, Meson, git, g++ >= 8, zlib1g-dev
+# - Keeps app.py for remote REST play
+# - Retains weights download; recommend cloud-mount for speed if frequent rebuilds
 
-FROM ubuntu:22.04
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
 # Install build tools and dependencies
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    build-essential cmake git wget curl unzip \
-    python3 python3-pip \
-    protobuf-compiler libprotobuf-dev libboost-all-dev && \
+    python3 python3-pip git ninja-build meson \
+    build-essential zlib1g-dev wget curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Clone lc0 source
-RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git
-
-# Build lc0 (CPU-only)
-RUN cd lc0 && \
-    mkdir build && \
-    cd build && \
-    cmake .. -DUSE_CUDA=OFF && \
-    make -j$(nproc) && \
-    cp lc0 /app/lc0 && \
+# Clone and build Lc0 from source using Meson backend (CUDA-enabled)
+RUN git clone --recurse-submodules --branch v0.32.0-rc1 https://github.com/LeelaChessZero/lc0.git && \
+    cd lc0 && \
+    meson setup build --buildtype release && \
+    meson compile -C build && \
+    cp build/lc0 /app/lc0 && \
     cd /app && rm -rf lc0
 
-# Download default weights
+# Download default weights (can be mounted for speed)
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Copy app.py server
+# Add REST server code
 COPY app.py /app/app.py
 
-# Install Python deps
+# Install REST dependencies
 RUN pip3 install flask
+
+# Expose REST port
+EXPOSE 5000
 
 CMD ["python3", "app.py"]
