@@ -10,6 +10,6 @@ RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
 RUN pip3 install flask
 
-COPY app.py /app/app.py
+COPY . /app
 
 CMD ["python3", "app.py"]
