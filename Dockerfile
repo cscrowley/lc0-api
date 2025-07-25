@@ -4,7 +4,7 @@ RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && apt-get i
 
 WORKDIR /app
 
-RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git && cd lc0 && mkdir build && cd build && cmake .. && make && cp lc0 /app/lc0
+RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git && cd lc0 && mkdir build && cd build && cmake .. -DUSE_CUDA=OFF && make && cp lc0 /app/lc0
 
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
