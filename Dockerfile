@@ -1,14 +1,17 @@
 FROM ubuntu:22.04
 
-# Retry wrapper for apt update
+# Install system and build dependencies
 RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    wget curl unzip python3 python3-pip git cmake build-essential protobuf-compiler libprotobuf-dev libboost-all-dev && \
+    wget curl unzip python3 python3-pip git cmake build-essential \
+    protobuf-compiler libprotobuf-dev libprotoc-dev \
+    libboost-all-dev libeigen3-dev zlib1g-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-# Clone and build lc0 from source (CPU-only)
+# Clone and build Lc0 from source (CPU-only)
 RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git && \
     cd lc0 && mkdir build && cd build && \
     cmake .. -DUSE_CUDA=OFF && make -j$(nproc) && \
@@ -18,8 +21,9 @@ RUN git clone --recurse-submodules --branch release/0.31 https://github.com/Leel
 # Download latest weights
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Copy server app and install Python deps
+# Copy server app and install Python dependencies
 COPY app.py /app/app.py
 RUN pip3 install flask
 
+# Launch server
 CMD ["python3", "app.py"]
