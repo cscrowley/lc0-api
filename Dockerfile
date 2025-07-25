@@ -1,7 +1,7 @@
 FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
 # Install system packages
-RUN apt-get update && apt-get install -y wget unzip curl python3 python3-pip git
+RUN apt-get update || true && apt-get -o Acquire::Retries=3 install -y wget unzip curl python3 python3-pip git || true
 
 # Set up working dir and install Lc0
 RUN mkdir /app && cd /app && wget https://github.com/LeelaChessZero/lc0/releases/download/v0.30.0/lc0-v0.30.0-linux-cuda.tar.gz && tar -xvzf lc0-v0.30.0-linux-cuda.tar.gz && mv lc0* lc0 && rm lc0-v0.30.0-linux-cuda.tar.gz
