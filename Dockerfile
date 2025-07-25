@@ -1,10 +1,11 @@
 FROM ubuntu:22.04
 
-# Install critical system packages with retry loop
-RUN for i in 1 2 3 4 5; do apt-get update && break || sleep 5; done && \
+# Install required packages
+RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git wget curl unzip python3 python3-pip cmake build-essential \
-    protobuf-compiler libprotobuf-dev libboost-all-dev && \
+    git cmake build-essential \
+    python3 python3-pip curl wget unzip \
+    protobuf-compiler libprotobuf-dev libboost-all-dev ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -20,9 +21,11 @@ RUN git clone --recurse-submodules --branch release/0.31 https://github.com/Leel
 # Download latest weights
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Copy app and install Flask
-COPY app.py /app/app.py
+# Install Flask for the server
 RUN pip3 install flask
 
-# Launch server
+# Copy app server
+COPY app.py /app/app.py
+
+# Run it
 CMD ["python3", "app.py"]
