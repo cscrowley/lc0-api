@@ -1,37 +1,40 @@
-# --------------------------------------------------------------------
-# Lc0 REST Server — Dockerfile v0.33
-# Build Strategy:
-# - Targeting v0.32.0-rc1 using Meson
-# - CUDA enabled (requires compatible GPU runtime)
-# - Uses flask REST wrapper for /bestmove endpoint
-# --------------------------------------------------------------------
+# Dockerfile for Lc0 REST server - v0.34
+# ------------------------------------------------------------
+# RELEASE NOTES:
+# v0.29 - Initial Docker builds started.
+# v0.30 - CMake builds with CPU-only failed.
+# v0.31 - Multiple retry with explicit dependencies.
+# v0.32 - Switched to Meson as recommended by README.
+# v0.33 - Added CUDA via -Dcuda=true (still failed).
+# v0.34 - Adds cuDNN, zlib, ensures all Meson prereqs, and tags version correctly.
+# ------------------------------------------------------------
 
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-# Install system dependencies and CUDA libs
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    git python3 python3-pip curl wget unzip build-essential \
-    ninja-build meson libprotobuf-dev protobuf-compiler \
-    zlib1g-dev libopenblas-dev && \
+# Install system dependencies and Meson prerequisites
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git wget curl unzip python3 python3-pip \
+    ninja-build meson build-essential \
+    zlib1g-dev libprotobuf-dev protobuf-compiler \
+    libopenblas-dev libcudnn8 libcudnn8-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Clone Lc0 v0.32.0-rc1 and build with Meson
-RUN git clone --recurse-submodules --branch v0.32.0-rc1 https://github.com/LeelaChessZero/lc0.git && \
+# Clone and build lc0 with CUDA using Meson
+RUN git clone --recurse-submodules https://github.com/LeelaChessZero/lc0.git && \
     cd lc0 && \
-    meson setup build --buildtype release -Dcuda=true && \
+    meson setup build --buildtype=release -Dcuda=true && \
     ninja -C build && \
     cp build/lc0 /app/lc0 && \
     cd /app && rm -rf lc0
 
-# Download default weights (can later mount via volume)
+# Download latest neural network weights
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Copy REST server
+# Copy REST API and install Flask
 COPY app.py /app/app.py
 RUN pip3 install flask
 
-EXPOSE 5000
+# Launch REST API
 CMD ["python3", "app.py"]
