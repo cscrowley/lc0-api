@@ -1,26 +1,24 @@
 FROM ubuntu:22.04
 
-# Install system dependencies
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    wget curl unzip python3 python3-pip git cmake build-essential protobuf-compiler \
-    libprotobuf-dev libboost-all-dev g++ && \
+# Install dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git python3 python3-pip ninja-build meson \
+    build-essential g++ zlib1g-dev libopenblas-dev \
+    wget curl unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Clone and build lc0 from source (CPU-only)
+# Clone and build lc0 with Meson
 RUN git clone --recurse-submodules --branch release/0.31 https://github.com/LeelaChessZero/lc0.git && \
-    cd lc0 && mkdir build && cd build && \
-    cmake .. -DUSE_CUDA=OFF && make -j$(nproc) && \
-    cp lc0 /app/lc0 && \
+    cd lc0 && ./build.sh && \
+    cp build/release/lc0 /app/lc0 && \
     cd /app && rm -rf lc0
 
-# Download latest weights
+# Download weights
 RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Add REST server
+# Install Flask and copy app
 COPY app.py /app/app.py
 RUN pip3 install flask
 
