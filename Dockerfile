@@ -1,35 +1,30 @@
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install required dependencies
+# Install dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    git cmake build-essential curl unzip wget python3 python3-pip \
-    libprotobuf-dev protobuf-compiler && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git wget curl unzip python3 python3-pip build-essential cmake \
+    ninja-build meson libprotobuf-dev protobuf-compiler \
+    libboost-all-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working dir
 WORKDIR /app
 
-# Clone v0.32.0-rc1 with submodules
-RUN git clone --recurse-submodules --branch v0.32.0-rc1 https://github.com/LeelaChessZero/lc0.git
+# Clone Lc0
+RUN git clone --recurse-submodules --branch release/0.32 https://github.com/LeelaChessZero/lc0.git
 
-# Build with vcpkg (built-in)
+# Build (CPU only, disable TensorFlow and CUDA)
 RUN cd lc0 && \
-    mkdir build && cd build && \
-    cmake .. -DUSE_CUDA=OFF -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc)
+    meson setup build --buildtype=release -Duse_tensorflow=false -Dcuda=false && \
+    ninja -C build && \
+    cp build/lc0 /app/lc0 && \
+    cd /app && rm -rf lc0
 
-# Copy lc0 binary up one level
-RUN cp lc0/build/lc0 /app/lc0
+# Download weights
+RUN wget https://lczero.org/networks/current -O weights.pb.gz
 
-# Download network weights
-RUN wget https://lczero.org/networks/current -O /app/weights.pb.gz
-
-# Add your REST app
+# Copy app and install Python dependencies
 COPY app.py /app/app.py
 RUN pip3 install flask
 
-# Run app
-CMD ["python3", "/app/app.py"]
+CMD ["python3", "app.py"]
