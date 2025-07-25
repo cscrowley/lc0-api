@@ -1,47 +1,38 @@
-# Dockerfile v0.38 - CUDA build attempt via Meson
-# ------------------------------------------------
-# CHANGELOG:
-# - Base image upgraded to `nvidia/cuda:12.2.0-devel-ubuntu22.04` (includes nvcc)
-# - Switched to Meson build system per upstream README
-# - Added g++-9 to satisfy CUDA compiler requirements
-# - Build target: lc0 with CUDA support via meson backend
-# - Includes REST API via Flask
-#
-# To fallback to CPU-only: set `-Dcuda=false` and rebuild
-
+# v0.39 - CUDA + Meson build, REST-enabled
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-# Install system dependencies
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    python3 python3-pip git curl wget ninja-build \
-    g++-9 gcc-9 build-essential \
-    meson libopenblas-dev zlib1g-dev && \
+LABEL version="0.39" description="Builds lc0 v0.32.0-rc1 with CUDA via Meson, includes Flask REST server"
+
+# Install build dependencies
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git python3 python3-pip curl wget unzip ninja-build \
+    meson build-essential libprotobuf-dev protobuf-compiler \
+    libopenblas-dev zlib1g-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set up working directory
+# Set workdir
 WORKDIR /app
 
-# Clone lc0 with submodules (v0.32.0-rc1)
-RUN git clone --recurse-submodules --branch v0.32.0-rc1 https://github.com/LeelaChessZero/lc0.git
+# Clone Lc0 (v0.32.0-rc1) with submodules
+RUN git clone --recurse-submodules https://github.com/LeelaChessZero/lc0.git && \
+    cd lc0 && git checkout v0.32.0-rc1 && git submodule update --init --recursive
 
-# Build with meson + CUDA
-RUN cd lc0 && \
-    CC=gcc-9 CXX=g++-9 meson setup build --buildtype release -Dcuda=true -Dnvcc_ccbin=g++-9 && \
+# Build with Meson
+RUN cd /app/lc0 && \
+    meson setup build --buildtype release && \
     ninja -C build && \
-    cp build/lc0 /app/lc0 && \
-    cd /app && rm -rf lc0
+    cp build/lc0 /app/lc0
 
-# Download network weights
-RUN wget https://lczero.org/networks/current -O weights.pb.gz
+# Download latest weights
+RUN wget https://lczero.org/networks/current -O /app/weights.pb.gz
+
+# Copy REST server
+COPY app.py /app/app.py
 
 # Install Flask
 RUN pip3 install flask
 
-# Copy app.py
-COPY app.py /app/app.py
-
-# Expose port for REST API
+# Expose REST port
 EXPOSE 5000
 
 # Run REST server
