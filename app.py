@@ -25,7 +25,7 @@ def bestmove():
     try:
         # Execute lc0, capturing both stdout and stderr
         process = subprocess.run(
-            ["./lc0", "--weights=weights.pb.gz", "--quiet"],
+            ["./lc0", "--weights=weights.pb.gz"],
             stdin=open(temp_file_name, "r"),
             capture_output=True, # Capture both stdout and stderr
             text=True, # Decode stdout/stderr as text
