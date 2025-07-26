@@ -26,6 +26,9 @@ RUN git clone --recurse-submodules --branch v0.31.0 https://github.com/LeelaChes
     meson setup build --buildtype=release -Dgtest=false && \
     ninja -C build
 
+# Download the neural network weights to the builder stage
+RUN wget https://storage.lczero.org/files/networks/f404e156ceb2882470fd8c032b8754af0fa0b71168328912eaef14671a256e34 -O /build/weights.pb.gz
+
 # Stage 2: Runtime - Creates the final image based on RunPod's base
 FROM runpod/base:0.6.1-cuda12.2.0
 
@@ -34,8 +37,8 @@ WORKDIR /app
 # Copy the compiled lc0 binary from the builder stage
 COPY --from=builder /build/lc0/build/lc0 /app/lc0
 
-# Download the neural network weights
-RUN wget https://lczero.org/networks/official_nets/BT4-spsa-1740.pb.gz -O /app/weights.pb.gz
+# Copy the neural network weights from the builder stage
+COPY --from=builder /build/weights.pb.gz /app/weights.pb.gz
 
 # Install Python dependencies
 COPY requirements.txt /requirements.txt
