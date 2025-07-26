@@ -40,7 +40,14 @@ COPY --from=builder /build/lc0/build/lc0 /app/lc0
 # Copy the neural network weights from the builder stage
 COPY --from=builder /build/weights.pb.gz /app/weights.pb.gz
 
-# Install Python dependencies
+# Install Python dependencies and runtime libraries for lc0
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    libopenblas0 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /requirements.txt
 RUN python3.10 -m pip install --upgrade pip && \
     python3.10 -m pip install --ignore-installed --upgrade -r /requirements.txt --no-cache-dir && \
