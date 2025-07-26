@@ -43,7 +43,7 @@ COPY --from=builder /build/weights.pb.gz /app/weights.pb.gz
 # Install Python dependencies
 COPY requirements.txt /requirements.txt
 RUN python3.10 -m pip install --upgrade pip && \
-    python3.10 -m pip install --upgrade -r /requirements.txt --no-cache-dir && \
+    python3.10 -m pip install --ignore-installed --upgrade -r /requirements.txt --no-cache-dir && \
     rm /requirements.txt
 
 # Copy the application file
